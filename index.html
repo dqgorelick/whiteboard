@@ -1,0 +1,77 @@
+<html>
+<head>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/p5@1.0.0/lib/p5.js"></script>
+	<title>collaborative whiteboard</title>
+	<style>
+		html, body {
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+</head>
+<body>
+	<button id="clear">Clear canvas</button>
+	<script>
+		document.addEventListener('touchmove', function() { e.preventDefault(); }, { passive:false });
+		// initialize socket.io following this guide: https://socket.io/get-started/chat/
+		var socket = io();
+		
+		// create a color, code from here // from https://stackoverflow.com/questions/5092808/how-do-i-randomly-generate-html-hex-color-codes-using-javascript 
+		var yourColor = '#'+(Math.random()*0xFFFFFF<<0).toString(16); 
+		
+
+		// we create an array where we will have the coordinates of our line stored 
+		var currentLine = []
+
+		// we create an event listener for when othwe users draw a line 
+		socket.on('line', function(msg){
+	      for(var i = 0; i < msg.line.length; i++) {
+	      	if (i > 0) {
+		      	strokeWeight(10)
+				stroke(msg.color)
+		      	line(msg.line[i-1][0], msg.line[i-1][1], msg.line[i][0], msg.line[i][1]);	
+	      	}
+	      }
+	    });
+
+	    function setup() {
+	    	// create a p5 canvas https://p5js.org/get-started/ 
+	    	createCanvas(window.innerWidth, window.innerHeight);
+		}	
+
+		function mouseDragged() {
+			// listen for mouse to be dragged to create our line 
+			fill(yourColor)
+			strokeWeight(10)
+			stroke(yourColor)
+			// wait for at least 1 element in our line array to start drawing the line itself 
+			if (currentLine.length > 0) { 
+				var lastX = currentLine[currentLine.length-1][0]
+				var lastY = currentLine[currentLine.length-1][1]
+				line(lastX,lastY, mouseX, mouseY)
+			}
+			// add these coordinates to the end of our stored line 
+			currentLine.push([mouseX, mouseY])
+		}
+
+		function mouseReleased() {
+			// create an object to send to socket.io, we attach our color so other users will know which color to draw 
+			var toSend = {
+				color: yourColor,
+				line: currentLine
+			}
+			if (currentLine.length > 0) {
+				socket.emit('line', toSend)
+			}
+			currentLine = []
+		}
+
+		// add event listener to our clear canvas button
+		document.getElementById('clear').addEventListener('click', function() {
+			clear()
+		})
+
+	</script>
+</body>
+</html>
